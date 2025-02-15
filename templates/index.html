@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flask Chatbot</title>
+  <style>
+    /* Basic Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #F7F7F8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    /* Chat Container */
+    #chat-container {
+      width: 100%;
+      max-width: 600px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Chat Messages Area */
+    #chat {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      border-bottom: 1px solid #E0E0E0;
+    }
+    .message {
+      margin-bottom: 16px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+    .user {
+      text-align: right;
+    }
+    .bot {
+      text-align: left;
+    }
+    /* Input Area */
+    #input-area {
+      display: flex;
+      padding: 10px;
+      background: #fafafa;
+    }
+    #userInput {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #E0E0E0;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    #sendBtn {
+      margin-left: 10px;
+      padding: 12px 20px;
+      background: #007BFF;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #sendBtn:hover {
+      background: #0056b3;
+    }
+    /* Typing Indicator Styles */
+    #typing-indicator {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    #typing-indicator strong {
+      margin-right: 8px;
+    }
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+    }
+    .typing-dots span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #999;
+      border-radius: 50%;
+      opacity: 0.4;
+      animation: bounce 1.4s infinite;
+    }
+    .typing-dots span:nth-child(1) {
+      animation-delay: 0s;
+    }
+    .typing-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .typing-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+      }
+      40% {
+        transform: translateY(-8px);
+        opacity: 1;
+      }
+    }
+  </style>
+  <script>
+    // Append a new message to the chat area.
+    function appendMessage(sender, message) {
+      const chat = document.getElementById("chat");
+      const messageElement = document.createElement("p");
+      messageElement.className = "message " + sender;
+      messageElement.innerHTML = "<strong>" + (sender === "user" ? "You" : "Bot") + ":</strong> " + message;
+      chat.appendChild(messageElement);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Show the typing indicator with three animated dots.
+    function showTypingIndicator() {
+      const chat = document.getElementById("chat");
+      const typingIndicator = document.createElement("div");
+      typingIndicator.id = "typing-indicator";
+      typingIndicator.className = "message bot";
+      typingIndicator.innerHTML = "<strong>Bot:</strong><div class='typing-dots'><span></span><span></span><span></span></div>";
+      chat.appendChild(typingIndicator);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Remove the typing indicator.
+    function removeTypingIndicator() {
+      const indicator = document.getElementById("typing-indicator");
+      if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    // Send the user's message to the server and display the bot's response.
+    function sendMessage() {
+      const userInput = document.getElementById("userInput");
+      const userMessage = userInput.value;
+      if (!userMessage.trim()) return;
+      
+      appendMessage("user", userMessage);
+      userInput.value = "";
+      userInput.focus();
+      
+      // Show typing indicator
+      showTypingIndicator();
+      
+      // Record the start time to enforce a 2-second delay.
+      const startTime = Date.now();
+
+      fetch("/get_response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage })
+      })
+      .then(response => response.json())
+      .then(data => {
+        const elapsed = Date.now() - startTime;
+        const delay = Math.max(2000 - elapsed, 0); // Minimum 2-second delay
+        setTimeout(() => {
+          removeTypingIndicator();
+          appendMessage("bot", data.response);
+        }, delay);
+      })
+      .catch(error => {
+        console.error("Error fetching response:", error);
+        removeTypingIndicator();
+        appendMessage("bot", "There was an error processing your message.");
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Automatically display a welcome message when the page loads
+      appendMessage("bot", "I'm here to listen and help you. How are you feeling today?");
+      
+      // Listen for the Enter key on the input field
+      document.getElementById("userInput").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+    });
+  </script>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="chat"></div>
+    <div id="input-area">
+      <input type="text" id="userInput" placeholder="Type your message here..." />
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</body>
+</html>
